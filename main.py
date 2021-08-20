@@ -1,4 +1,5 @@
 import argparse
+from text import is_this_utf8
 from nicely_format import validate_json, validate_toml, validate_xml, validate_yaml
 import os
 import filetype
@@ -12,8 +13,9 @@ def detect_filetype(fpath):
     # can only detect binary file
     kind = filetype.guess(fpath)
     # print(kind, fpath)
-    if kind is not None:
-        return kind
+    # xlsx returns as ZIP!
+    if kind is not None and kind.extension != 'zip':
+        return kind.extension
     fs = fpath.split(".")
     if len(fs) > 1:
         return fs[len(fs) - 1]
@@ -26,7 +28,9 @@ def handle_file(fpath, **kwargs):
     best_formats = ["json", "toml", "yml", "yaml", "xml", "html"]
 
     good = False
+    is_utf8, what = None, None
     if fType in best_formats:
+        is_utf8, what = is_this_utf8(fpath)
         if fType == "json":
             good = validate_json(fpath)
         elif fType in ["html", "xml"]:
@@ -35,8 +39,24 @@ def handle_file(fpath, **kwargs):
             good = validate_yaml(fpath)
         elif fType == "toml":
             good = validate_toml(fpath)
+    else:
+        if fType == "xlsx":
+            good = False
+        elif fType == "xls":
+            good = False
+        elif fType in ["csv", "tsv"]:
+            is_utf8, what = is_this_utf8(fpath)
+            good = False
 
-    print(f"{'/' if good else 'X'} [expected:{expected}] [ftype:{fType}] path: {fpath}")
+    encoding = 'unknown'
+    if is_utf8:
+        encoding = 'utf-8'
+    elif what is not None:
+        encoding = what
+
+    print(
+        f"{'/' if good else 'X'} [{encoding:>15s}] [expected:{expected}] [ftype:{fType}] path: {fpath}"
+    )
 
 
 def handle_dir(fpath):
