@@ -1,4 +1,5 @@
 import argparse
+from sheet import csv_shape_consistency, fast_check_header
 from text import is_this_utf8
 from nicely_format import validate_json, validate_toml, validate_xml, validate_yaml
 import os
@@ -14,7 +15,7 @@ def detect_filetype(fpath):
     kind = filetype.guess(fpath)
     # print(kind, fpath)
     # xlsx returns as ZIP!
-    if kind is not None and kind.extension != 'zip':
+    if kind is not None and kind.extension != "zip":
         return kind.extension
     fs = fpath.split(".")
     if len(fs) > 1:
@@ -29,6 +30,7 @@ def handle_file(fpath, **kwargs):
 
     good = False
     is_utf8, what = None, None
+    note = ""
     if fType in best_formats:
         is_utf8, what = is_this_utf8(fpath)
         if fType == "json":
@@ -39,23 +41,38 @@ def handle_file(fpath, **kwargs):
             good = validate_yaml(fpath)
         elif fType == "toml":
             good = validate_toml(fpath)
+        good = 100 if good else 0
     else:
         if fType == "xlsx":
             good = False
         elif fType == "xls":
             good = False
         elif fType in ["csv", "tsv"]:
+            good = 100
             is_utf8, what = is_this_utf8(fpath)
-            good = False
+            if not is_utf8:
+                good -= 10
+            encoding = "utf-8" if is_utf8 else "iso-8859-11"
+            _check = fast_check_header(fpath, encoding=encoding)
+            if not _check:
+                good -= 20
+                note += f" / bad header"
+            _shape, msg = csv_shape_consistency(fpath, encoding=encoding)
+            if not _shape:
+                good -= 20
+                note += f" / inconsistency: {msg}"
 
-    encoding = 'unknown'
+    encoding = "unknown"
     if is_utf8:
-        encoding = 'utf-8'
+        encoding = "utf-8"
     elif what is not None:
         encoding = what
 
     print(
-        f"{'/' if good else 'X'} [{encoding:>15s}] [expected:{expected}] [ftype:{fType}] path: {fpath}"
+        f"""========== {fpath} ==========\n"""
+        f"""1. filetype:            {expected or fType}\n"""
+        f"""2. encoding:            {encoding}\n"""
+        f"""3. Machine readable:    {good} % {note}"""
     )
 
 

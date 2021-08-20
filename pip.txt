@@ -3,3 +3,4 @@ openpyxl
 pyyaml
 toml
 lxml
+pandas
