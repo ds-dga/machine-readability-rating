@@ -1,5 +1,8 @@
 import pandas as pd
 import csv
+import warnings
+
+warnings.filterwarnings("error")
 
 
 """
@@ -12,11 +15,44 @@ import csv
 """
 
 
+def has_good_header(fpath, *args, **kwargs):
+    """Check if the file has a good header (1-row header)
+
+    Args:
+        fpath (string): path to file
+
+    Returns:
+        bool:   True as good
+        string: what makes this file bad
+    """
+    enc = kwargs.get("encoding", "utf-8")
+    good = fast_check_header(fpath, encoding=enc)
+    if not good:
+        return False, "number as header"
+
+    good = header_checker_2(fpath, encoding=enc)
+    if not good:
+        return False, "headers might contain data"
+
+    return True, ""
+
+
 def fast_check_header(filename, **kwargs):
     enc = kwargs.get("encoding", "utf-8")
     with open(filename, encoding=enc) as f:
         first = f.read(1)
     return first not in ".-0123456789"
+
+
+def header_checker_2(filename, **kwargs):
+    enc = kwargs.get("encoding", "utf-8")
+    with open(filename, encoding=enc) as f:
+        cf = csv.reader(f.read(100))
+        headers = next(cf)
+        for h in headers:
+            if h[0] in ".-0123456789":
+                return False
+    return True
 
 
 def csv_shape_consistency(fpath, **kwargs):
@@ -60,5 +96,9 @@ def csv_shape_consistency(fpath, **kwargs):
     if dictreader_shape != reader_shape:
         return False, "dict != reader"
 
-    df = pd.read_csv(fpath, encoding=enc, low_memory=False)
-    return reader_shape == list(df.shape), "csv != dataframe"
+    try:
+        df = pd.read_csv(fpath, encoding=enc)
+    except pd.errors.DtypeWarning:
+        return False, "df: mixed types"
+    good = reader_shape == list(df.shape)
+    return good, "" if good else "csv != dataframe"

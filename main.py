@@ -1,5 +1,5 @@
 import argparse
-from sheet import csv_shape_consistency, fast_check_header
+from sheet import csv_shape_consistency, fast_check_header, has_good_header
 from text import is_this_utf8
 from nicely_format import validate_json, validate_toml, validate_xml, validate_yaml
 import os
@@ -53,13 +53,13 @@ def handle_file(fpath, **kwargs):
             if not is_utf8:
                 good -= 10
             encoding = "utf-8" if is_utf8 else "iso-8859-11"
-            _check = fast_check_header(fpath, encoding=encoding)
+            _check, msg = has_good_header(fpath, encoding=encoding)
             if not _check:
                 good -= 20
-                note += f" / bad header"
+                note += f" / bad header: {msg}"
             _shape, msg = csv_shape_consistency(fpath, encoding=encoding)
             if not _shape:
-                good -= 20
+                good -= 15
                 note += f" / inconsistency: {msg}"
 
     encoding = "unknown"
