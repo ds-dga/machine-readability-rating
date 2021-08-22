@@ -1,8 +1,12 @@
-import pandas as pd
-import csv
-import warnings
-
-warnings.filterwarnings("error")
+from text import is_this_utf8
+from sheet_csv import (
+    has_good_header as csv_has_good_header,
+    is_shape_consistency as csv_shape_consistency,
+)
+from sheet_excel import (
+    has_good_header as excel_has_good_header,
+    is_shape_consistency as excel_shape_consistency,
+)
 
 
 """
@@ -15,90 +19,34 @@ warnings.filterwarnings("error")
 """
 
 
-def has_good_header(fpath, *args, **kwargs):
-    """Check if the file has a good header (1-row header)
-
-    Args:
-        fpath (string): path to file
-
-    Returns:
-        bool:   True as good
-        string: what makes this file bad
-    """
-    enc = kwargs.get("encoding", "utf-8")
-    good = fast_check_header(fpath, encoding=enc)
-    if not good:
-        return False, "number as header"
-
-    good = header_checker_2(fpath, encoding=enc)
-    if not good:
-        return False, "headers might contain data"
-
-    return True, ""
+def validate_csv(fpath):
+    note = ""
+    good = 100
+    is_utf8, encoding_guess = is_this_utf8(fpath)
+    if not is_utf8:
+        good -= 10
+    encoding = "utf-8" if is_utf8 else "iso-8859-11"
+    _check, msg = csv_has_good_header(fpath, encoding=encoding)
+    if not _check:
+        good -= 20
+        note += f" / bad header: {msg}"
+    _shape, msg = csv_shape_consistency(fpath, encoding=encoding)
+    if not _shape:
+        good -= 15
+        note += f" / inconsistency: {msg}"
+    return good, encoding_guess, note
 
 
-def fast_check_header(filename, **kwargs):
-    enc = kwargs.get("encoding", "utf-8")
-    with open(filename, encoding=enc) as f:
-        first = f.read(1)
-    return first not in ".-0123456789"
-
-
-def header_checker_2(filename, **kwargs):
-    enc = kwargs.get("encoding", "utf-8")
-    with open(filename, encoding=enc) as f:
-        cf = csv.reader(f.read(100))
-        headers = next(cf)
-        for h in headers:
-            if h[0] in ".-0123456789":
-                return False
-    return True
-
-
-def csv_shape_consistency(fpath, **kwargs):
-    """check dimension and especially column consistency
-
-    return when found inconsistensy as fast as possible
-        True        consistency
-        False       inconsistency
-    """
-    enc = kwargs.get("encoding", "utf-8")
-
-    dictreader_shape = [0, 0]
-    with open(fpath, "rt", encoding=enc) as f:
-        cols = set()
-        tot = 0
-        cf = csv.DictReader(f)
-        for r in cf:
-            cols.add(len(r))
-            tot += 1
-            if len(cols) > 1:
-                return False, "#col mismatch"
-
-        dictreader_shape = [tot, cols.pop()]
-
-    reader_shape = [0, 0]
-    with open(fpath, "rt", encoding=enc) as f:
-        cols = set()
-        tot = 0
-        cf = csv.reader(f)
-        # This skips the first row of the CSV file (fair with DictReader)
-        next(cf)
-
-        for r in cf:
-            cols.add(len(r))
-            tot += 1
-            if len(cols) > 1:
-                return False, "#col mismatch"
-
-        reader_shape = [tot, cols.pop()]
-
-    if dictreader_shape != reader_shape:
-        return False, "dict != reader"
-
-    try:
-        df = pd.read_csv(fpath, encoding=enc)
-    except pd.errors.DtypeWarning:
-        return False, "df: mixed types"
-    good = reader_shape == list(df.shape)
-    return good, "" if good else "csv != dataframe"
+def validate_excel(fpath):
+    note = ""
+    good = 100
+    _check, msg = excel_has_good_header(fpath)
+    if not _check:
+        good -= 20
+        note += f" / bad header: {msg}"
+    _shape, msg = excel_shape_consistency(fpath)
+    if not _shape:
+        good -= 15
+        note += f" / inconsistency: {msg}"
+    # Microsoft always use utf-8 with BOM
+    return good, "utf-8 with BOM", note

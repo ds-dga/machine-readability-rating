@@ -1,5 +1,5 @@
 import argparse
-from sheet import csv_shape_consistency, fast_check_header, has_good_header
+from sheet import validate_csv, validate_excel
 from text import is_this_utf8
 from nicely_format import validate_json, validate_toml, validate_xml, validate_yaml
 import os
@@ -44,23 +44,11 @@ def handle_file(fpath, **kwargs):
         good = 100 if good else 0
     else:
         if fType == "xlsx":
-            good = False
+            good, what, note = validate_excel(fpath)
         elif fType == "xls":
             good = False
         elif fType in ["csv", "tsv"]:
-            good = 100
-            is_utf8, what = is_this_utf8(fpath)
-            if not is_utf8:
-                good -= 10
-            encoding = "utf-8" if is_utf8 else "iso-8859-11"
-            _check, msg = has_good_header(fpath, encoding=encoding)
-            if not _check:
-                good -= 20
-                note += f" / bad header: {msg}"
-            _shape, msg = csv_shape_consistency(fpath, encoding=encoding)
-            if not _shape:
-                good -= 15
-                note += f" / inconsistency: {msg}"
+            good, what, note = validate_csv(fpath)
 
     encoding = "unknown"
     if is_utf8:
