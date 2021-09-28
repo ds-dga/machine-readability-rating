@@ -6,6 +6,7 @@ from sheet_csv import (
 from sheet_excel import (
     has_good_header as excel_has_good_header,
     is_shape_consistency as excel_shape_consistency,
+    has_merged_cells as excel_merged_cells,
 )
 
 
@@ -48,5 +49,9 @@ def validate_excel(fpath):
     if not _shape:
         good -= 15
         note += f" / inconsistency: {msg}"
+    _has_merged, msg = excel_merged_cells(fpath)
+    if _has_merged:
+        good -= 5
+        note += f" / merged cells: {msg}"
     # Microsoft always use utf-8 with BOM
     return good, "utf-8 with BOM", note

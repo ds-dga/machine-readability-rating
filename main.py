@@ -1,4 +1,5 @@
 import argparse
+from db import Database
 from sheet import validate_csv, validate_excel
 from text import is_this_utf8
 from nicely_format import validate_json, validate_toml, validate_xml, validate_yaml
@@ -7,7 +8,7 @@ import filetype
 
 parser = argparse.ArgumentParser()
 parser.add_argument("command", help="The command to run this program, e.g. check")
-parser.add_argument("path", type=str, help="File or directory path to work on")
+parser.add_argument("--path", type=str, help="File or directory path to work on")
 
 
 def detect_filetype(fpath):
@@ -75,8 +76,23 @@ def handle_dir(fpath):
         #     handle_dir(os.path.join(root, d))
 
 
+def handle_ckan_db():
+    db = Database()
+    cursor = db.get_cursor()
+    q = """SELECT id, format, grade
+    FROM resource
+    WHERE format in ('CSV','JSON','XLS','XLSX','XML')
+        AND grade IS NULL;
+    """
+    cursor.execute(q)
+    for row in cursor.fetchall():
+        print(row)
+    pass
+
+
 def main():
     args = parser.parse_args()
+    print(args)
     if args.command == "check":
         path = args.path
         # whether it's file or directory
@@ -87,6 +103,9 @@ def main():
             handle_dir(path)
         else:
             handle_file(path)
+    elif args.command == "ckan":
+        # this will loop table resource in ckan database and see what's missing grade, then process it
+        handle_ckan_db()
     else:
         parser.print_help()
 

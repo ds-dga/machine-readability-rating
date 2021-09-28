@@ -10,7 +10,7 @@ BOM_MARKERS = [
 
 
 def is_this_utf8(fp):
-    what = ""
+    what = "utf-8"  # assume any file is utf-8, then prove that we're wrong
     is_utf8 = True
     f = open(fp, "rt")
     try:

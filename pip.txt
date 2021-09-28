@@ -4,3 +4,4 @@ pyyaml
 toml
 lxml
 pandas
+psycopg2-binary
