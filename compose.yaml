@@ -1,0 +1,7 @@
+version: "3"
+
+services:
+  machine-readable:
+    image: dk-reg.10ninox.com/ds-dga/machine-readable:latest
+    environment:
+      - CKAN_DB_URI=${CKAN_DB_URI}
