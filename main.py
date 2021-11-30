@@ -50,6 +50,9 @@ def validate_this(fpath, format):
             good, what, note = validator[format](fpath)
         except InvalidFileException:
             return 0, None, "unsupported xls"
+        except Exception as e:
+            print(e)
+            return 0, None, "something is wrong"
 
     encoding = "unknown"
     if is_utf8:
@@ -93,7 +96,7 @@ def handle_url(link, file_format):
             os.remove(fp)
         return good, encoding, note
 
-    # print(f"""========== {link} ==========\n** ERR: """, status_code)
+    print(f"""========== {link} ==========\n** ERR: """, status_code, flush=True)
     return 0, None, 404
 
 
@@ -116,6 +119,7 @@ def handle_ckan_db():
             "uri"
         ] = f'{CKAN_URL}/dataset/{one["package_id"]}/resource/{one["id"]}/download/{fname}'
         points, encoding, note = handle_url(one["uri"], one["format"])
+        print(one['uri'], one['format'], flush=True)
 
         grade = calculate_grade(points)
         if grade != one["grade"]:
@@ -130,7 +134,8 @@ def handle_ckan_db():
             f"""1. grade:               {grade_delta}\n"""
             f"""2. filetype:            {one['format']}\n"""
             f"""3. encoding:            {encoding}\n"""
-            f"""4. Machine readable:    {points if points else '0'} % {note}"""
+            f"""4. Machine readable:    {points if points else '0'} % {note}""",
+            flush=True
         )
 
 

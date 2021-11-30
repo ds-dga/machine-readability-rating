@@ -3,6 +3,7 @@ openpyxl
 pyyaml
 toml
 lxml
+numpy
 pandas
 psycopg2-binary
 requests

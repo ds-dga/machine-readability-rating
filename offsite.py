@@ -7,7 +7,11 @@ sess = Session()
 
 
 def fetch_file(url, file_format):
-    resp = sess.get(url)
+    try:
+        resp = sess.get(url, timeout=10)
+    except:
+        return 599, "", file_format
+
     status_code = resp.status_code
     if status_code != 200:
         return status_code, "", file_format
