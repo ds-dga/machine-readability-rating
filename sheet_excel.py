@@ -33,15 +33,22 @@ def is_shape_consistency(fpath, **kwargs):
         True        consistency
         False       inconsistency
     """
-    wb = load_workbook(filename=fpath)
+    wb = load_workbook(
+        filename=fpath,
+        data_only=True,
+        read_only=True,
+    )
     shapes = []
     sheets = wb.sheetnames
     for sn in sheets:
-        ws = wb[sn]
-        rows = list(ws.rows)
+        try:
+            ws = wb[sn]
+            rows = list(ws.rows)
+            shapes.append([len(rows) - 1, len(rows[0])])
+        except IndexError:
+            pass
         # openpyxl doesn't handle 1-row as header automaticall while
         # pandas always assumes that -- we need to make it fair for both cases
-        shapes.append([len(rows) - 1, len(rows[0])])
 
     df_shapes = []
     try:
@@ -69,10 +76,13 @@ def has_merged_cells(fpath, **kwargs):
     wb = load_workbook(filename=fpath)
     sheets = wb.sheetnames
     for sn in sheets:
-        ws = wb[sn]
-        merged_cells = ws.merged_cells.ranges
-        if not merged_cells:
-            continue
-        bd = [f'{i}' for i in list(merged_cells[0].bounds)]
-        return True, f"{sn}/{','.join(bd)}"
+        try:
+            ws = wb[sn]
+            merged_cells = ws.merged_cells.ranges
+            if not merged_cells:
+                continue
+            bd = [f"{i}" for i in list(merged_cells[0].bounds)]
+            return True, f"{sn}/{','.join(bd)}"
+        except IndexError:
+            pass
     return False, ""

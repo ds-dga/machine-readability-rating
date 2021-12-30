@@ -1,6 +1,9 @@
+import os
 import argparse
+from time import sleep
 from openpyxl.utils.exceptions import InvalidFileException
 from db import Database
+import ckan
 from grading import calculate_grade
 from offsite import fetch_file
 from sheet import validate_csv, validate_excel
@@ -12,7 +15,6 @@ from nicely_format import (
     validate_xml,
     validate_yaml,
 )
-import os
 
 parser = argparse.ArgumentParser()
 parser.add_argument("command", help="The command to run this program, e.g. check")
@@ -100,6 +102,20 @@ def handle_url(link, file_format):
     return 0, None, 404
 
 
+def handle_ckan_api():
+    FORMATS = ("CSV", "JSON", "XLS", "XLSX", "XML")
+    packages = ckan.get_package_list()
+    for id in packages[:10]:
+        item = ckan.get_package_detail(id)
+        sleep(3)  # so, this crawler doesn't hurt server much
+        for res in item["resources"]:
+            if res["format"] not in FORMATS:
+                print("X", res["format"], res["url"], "\n\n")
+                continue
+            print("/", res["format"], res["url"])
+            ckan.resource_grader(res)
+
+
 def handle_ckan_db():
     CKAN_URL = os.getenv("CKAN_URL", "http://localhost:5000")
     db = Database()
@@ -119,7 +135,7 @@ def handle_ckan_db():
             "uri"
         ] = f'{CKAN_URL}/dataset/{one["package_id"]}/resource/{one["id"]}/download/{fname}'
         points, encoding, note = handle_url(one["uri"], one["format"])
-        print(one['uri'], one['format'], flush=True)
+        print(one["uri"], one["format"], flush=True)
 
         grade = calculate_grade(points)
         if grade != one["grade"]:
@@ -135,7 +151,7 @@ def handle_ckan_db():
             f"""2. filetype:            {one['format']}\n"""
             f"""3. encoding:            {encoding}\n"""
             f"""4. Machine readable:    {points if points else '0'} % {note}""",
-            flush=True
+            flush=True,
         )
 
 
@@ -158,7 +174,8 @@ def main():
             handle_file(path)
     elif args.command == "ckan":
         # this will loop table resource in ckan database and see what's missing grade, then process it
-        handle_ckan_db()
+        # handle_ckan_db()
+        handle_ckan_api()
     else:
         parser.print_help()
 
