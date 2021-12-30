@@ -20,7 +20,7 @@ class Database(object):
 
     def resource_grade_update(self, id, grade):
         q = f"""
-        UPDATE resource SET grade = '{grade}'
+        UPDATE resource SET grade = '{grade}', inspected = 'NOW()'
         WHERE id = '{id}'
         """
         try:

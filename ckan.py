@@ -1,3 +1,4 @@
+import arrow
 from db import Database
 from grading import calculate_grade
 from main import handle_url
@@ -40,14 +41,18 @@ def get_resource_grade(resourceID):
 
 
 def resource_grader(item):
+    curr_grade, inspected = get_resource_grade(item["id"])
+    now = arrow.get()
+    if inspected and (now - arrow.get(inspected)).days < 7:
+        print("    >>> SKIP too soon")
+        return
+
     points, encoding, note = handle_url(item["url"], item["format"])
     # print(item["url"], item["format"], flush=True)
-    curr_grade, inspected = get_resource_grade(item["id"])
-    print(f"   >>> inspected_on: {inspected}")
     grade = calculate_grade(points)
+    db.resource_grade_update(item["id"], grade)
+    # below this doesn't do anything but printing output
     if grade != curr_grade:
-        db.resource_grade_update(item["id"], grade)
-        # below this doesn't do anything but printing output
         grade_delta = f"{curr_grade} --> {grade}"
     else:
         grade_delta = f"{grade} -- same old"

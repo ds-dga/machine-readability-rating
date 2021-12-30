@@ -6,7 +6,7 @@ from db import Database
 import ckan
 from grading import calculate_grade
 from offsite import fetch_file
-from sheet import validate_csv, validate_excel
+from sheet import validate_csv, validate_excel, validate_xls
 from text import is_this_utf8
 from nicely_format import (
     detect_filetype,
@@ -32,7 +32,7 @@ def validate_this(fpath, format):
         "yml": validate_yaml,
         "toml": validate_toml,
         "xlsx": validate_excel,
-        "xls": validate_excel,  ## TODO: fix this
+        "xls": validate_xls,
         "csv": validate_csv,
         "tsv": validate_csv,
     }
@@ -105,7 +105,7 @@ def handle_url(link, file_format):
 def handle_ckan_api():
     FORMATS = ("CSV", "JSON", "XLS", "XLSX", "XML")
     packages = ckan.get_package_list()
-    for id in packages[:10]:
+    for id in packages:
         item = ckan.get_package_detail(id)
         sleep(3)  # so, this crawler doesn't hurt server much
         for res in item["resources"]:
