@@ -58,7 +58,7 @@ def resource_grader(item):
         grade_delta = f"{grade} -- same old"
     print(
         f"""== {item['id']} ================\n"""
-        f"""1. {item['description']}\n"""
+        f"""0. {item['description']}\n"""
         f"""1. grade:               {grade_delta}\n"""
         f"""2. filetype:            {item['format']}\n"""
         f"""3. encoding:            {encoding}\n"""
