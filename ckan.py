@@ -5,9 +5,7 @@ from main import handle_url
 from offsite import fetch_api
 
 BASE_URL = "https://data.go.th"
-
-db = Database()
-
+db = None
 
 def get_package_list():
     url = f"{BASE_URL}/api/3/action/package_list"
@@ -30,6 +28,9 @@ def get_package_detail(id):
 
 
 def get_resource_grade(resourceID):
+    global db
+    if not db:
+        db = Database()
     cursor = db.get_cursor()
     q = f"""SELECT grade, inspected
     FROM resource
@@ -41,6 +42,9 @@ def get_resource_grade(resourceID):
 
 
 def resource_grader(item):
+    global db
+    if not db:
+        db = Database()
     curr_grade, inspected = get_resource_grade(item["id"])
     now = arrow.get()
     if inspected and (now - arrow.get(inspected)).days < 7:

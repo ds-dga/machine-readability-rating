@@ -1,4 +1,4 @@
-from os import stat
+from os import getenv
 import json
 from requests import Session
 from tempfile import NamedTemporaryFile
@@ -15,7 +15,24 @@ def fetch_api(url):
     return body
 
 
+def is_content_size_ok(url):
+    max_filesize = getenv("MAX_FILESIZE_BYTES", 30*1024*1024)
+    try:
+        resp = sess.head(url)
+        resp_in_bytes = resp.headers['content-length']
+        is_ok = resp_in_bytes < max_filesize
+        if not is_ok:
+            print(f'[URL] {url}')
+            print(f'       is bigger than we can handle: {int(resp_in_bytes/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)')
+        return is_ok
+    except:
+        return False
+
+
 def fetch_file(url, file_format):
+    if not is_content_size_ok(url):
+        return 590, "", file_format
+
     try:
         resp = sess.get(url, timeout=10)
     except:

@@ -66,6 +66,13 @@ def validate_this(fpath, format):
 
 
 def handle_file(fpath, **kwargs):
+    max_filesize = os.getenv("MAX_FILESIZE_BYTES", 30*1024*1024)
+    file_size = os.path.getsize(fpath)
+    if file_size > max_filesize:
+        print(f'[FILE] {fpath}')
+        print(f'       is bigger than we can handle: {int(file_size/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)')
+        return
+
     expected = kwargs.get("filetype", None)
     fType = detect_filetype(fpath)
     good, encoding, note = validate_this(fpath, fType)
@@ -178,6 +185,9 @@ def main():
         if not path:
             print(f"Error: path is missing")
             parser.print_help()
+            return
+        if path.index('http') == 0:
+            handle_url(path, 'CSV')
             return
         # whether it's file or directory
         if not os.path.exists(path):
