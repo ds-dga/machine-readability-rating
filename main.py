@@ -69,6 +69,7 @@ def handle_file(fpath, **kwargs):
     max_filesize = os.getenv("MAX_FILESIZE_BYTES", 30*1024*1024)
     file_size = os.path.getsize(fpath)
     if file_size > max_filesize:
+        # TODO: we should save this somewhere to process on other node
         print(f'[FILE] {fpath}')
         print(f'       is bigger than we can handle: {int(file_size/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)')
         return
@@ -105,8 +106,10 @@ def handle_url(link, file_format):
             os.remove(fp)
         return good, encoding, note
 
-    print(f"""========== {link} ==========\n** ERR: """, status_code, flush=True)
-    return 0, None, 404
+    print(f""">>>=================\n""",
+        f"""    LINK: {link}\n""",
+        f"""    ERR: {status_code}""", flush=True)
+    return 0, None, status_code
 
 
 def handle_ckan_api():
@@ -117,7 +120,7 @@ def handle_ckan_api():
         sleep(3)  # so, this crawler doesn't hurt server much
         for res in item["resources"]:
             if res["format"] not in FORMATS:
-                print("X", res["format"], res["url"], "\n\n")
+                print("X", res["format"], res["url"])
                 continue
             print("/", res["format"], res["url"])
             ckan.resource_grader(res)
@@ -158,7 +161,12 @@ def handle_ckan_db():
 
         print(one["uri"], one["format"], flush=True)
         points, encoding, note = handle_url(one["uri"], one["format"])
-        grade = calculate_grade(points)
+        grade = 'f'
+        if note == 590:
+            print('    >>> FILE is TOO big to handle here', flush=True)
+
+        if note not in (404, 590, 599):
+            grade = calculate_grade(points)
         db.resource_grade_update(one["id"], grade)
         curr_grade = one["grade"]
         if grade != curr_grade:
@@ -172,7 +180,8 @@ def handle_ckan_db():
             f"""1. grade:               {grade_delta}\n"""
             f"""2. filetype:            {one['format']}\n"""
             f"""3. encoding:            {encoding}\n"""
-            f"""4. Machine readable:    {points if points else '0'} % {note}""",
+            f"""4. Machine readable:    {points if points else '0'} % {note}"""
+            f"""=================>>>""",
             flush=True,
         )
 

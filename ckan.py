@@ -47,13 +47,16 @@ def resource_grader(item):
         db = Database()
     curr_grade, inspected = get_resource_grade(item["id"])
     now = arrow.get()
-    if inspected and (now - arrow.get(inspected)).days < 7:
+    # force to re-evaluate 'F' anyway
+    if curr_grade != 'f' and inspected and (now - arrow.get(inspected)).days < 7:
         print("    >>> SKIP too soon")
         return
 
     points, encoding, note = handle_url(item["url"], item["format"])
     # print(item["url"], item["format"], flush=True)
-    grade = calculate_grade(points)
+    grade = 'f'
+    if note not in (404, 590, 599):
+        grade = calculate_grade(points)
     db.resource_grade_update(item["id"], grade)
     # below this doesn't do anything but printing output
     if grade != curr_grade:
@@ -66,6 +69,7 @@ def resource_grader(item):
         f"""1. grade:               {grade_delta}\n"""
         f"""2. filetype:            {item['format']}\n"""
         f"""3. encoding:            {encoding}\n"""
-        f"""4. Machine readable:    {points if points else '0'} % {note}""",
+        f"""4. Machine readable:    {points if points else '0'} % {note}"""
+        f"""=================>>>""",
         flush=True,
     )

@@ -22,6 +22,7 @@ def is_content_size_ok(url):
         resp_in_bytes = resp.headers['content-length']
         is_ok = resp_in_bytes < max_filesize
         if not is_ok:
+            # TODO: we should save this somewhere to process on other node
             print(f'[URL] {url}')
             print(f'       is bigger than we can handle: {int(resp_in_bytes/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)')
         return is_ok
