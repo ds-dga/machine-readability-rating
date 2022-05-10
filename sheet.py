@@ -1,17 +1,21 @@
+from sheet_common import has_na_in_number_cols
 from text import is_this_utf8
 from sheet_csv import (
     has_good_header as csv_has_good_header,
     is_shape_consistency as csv_shape_consistency,
+    are_num_cols_consistency as csv_cols_consistency,
 )
 from sheet_excel import (
     has_good_header as excel_has_good_header,
     is_shape_consistency as excel_shape_consistency,
     has_merged_cells as excel_merged_cells,
+    are_num_cols_consistency as excel_cols_consistency,
 )
 from sheet_xls import (
     has_good_header as xls_has_good_header,
     is_shape_consistency as xls_shape_consistency,
     has_merged_cells as xls_merged_cells,
+    are_num_cols_consistency as xls_cols_consistency,
 )
 
 
@@ -36,8 +40,12 @@ def validate_csv(fpath):
     if not _check:
         good -= 20
         note += f" / bad header: {msg}"
-    _shape, msg = csv_shape_consistency(fpath, encoding=encoding)
-    if not _shape:
+    # consistency includes both shape & each col inspection
+    _consistency, msg = csv_shape_consistency(fpath)
+    if not _consistency:
+        # check again with cols_consistency
+        _consistency = csv_cols_consistency(fpath)
+    if not _consistency:
         good -= 15
         note += f" / inconsistency: {msg}"
     return good, encoding_guess, note
@@ -50,8 +58,12 @@ def validate_excel(fpath):
     if not _check:
         good -= 20
         note += f" / bad header: {msg}"
-    _shape, msg = excel_shape_consistency(fpath)
-    if not _shape:
+    # consistency includes both shape & each col inspection
+    _consistency, msg = excel_shape_consistency(fpath)
+    if not _consistency:
+        # check again with cols_consistency
+        _consistency = excel_cols_consistency(fpath)
+    if not _consistency:
         good -= 15
         note += f" / inconsistency: {msg}"
     _has_merged, msg = excel_merged_cells(fpath)
@@ -69,8 +81,12 @@ def validate_xls(fpath):
     if not _check:
         good -= 20
         note += f" / bad header: {msg}"
-    _shape, msg = xls_shape_consistency(fpath)
-    if not _shape:
+    # consistency includes both shape & each col inspection
+    _consistency, msg = xls_shape_consistency(fpath)
+    if not _consistency:
+        # check again with cols_consistency
+        _consistency = xls_cols_consistency(fpath)
+    if not _consistency:
         good -= 15
         note += f" / inconsistency: {msg}"
     _has_merged, msg = xls_merged_cells(fpath)

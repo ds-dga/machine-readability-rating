@@ -2,6 +2,8 @@ import pandas as pd
 import csv
 import warnings
 
+from sheet_common import has_na_in_number_cols
+
 warnings.filterwarnings("error")
 
 """ CSV grader
@@ -100,3 +102,15 @@ def is_shape_consistency(fpath, **kwargs):
         return False, "df: mixed types"
     good = reader_shape == list(df.shape)
     return good, "" if good else "csv != dataframe"
+
+
+def are_num_cols_consistency(fpath):
+    """Basically check if there is NA or null in numbered columns
+
+    return <bool>
+        True    all numbered columns are consistency
+        False   Not all numbered columns are consistency
+    """
+    df = pd.read_csv(fpath)
+    bad, _ = has_na_in_number_cols(df)
+    return not bad

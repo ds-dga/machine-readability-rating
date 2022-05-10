@@ -1,7 +1,9 @@
 import os
+import csv
 import argparse
 from time import sleep
 from openpyxl.utils.exceptions import InvalidFileException
+import arrow
 from db import Database
 import ckan
 from grading import calculate_grade
@@ -16,9 +18,22 @@ from nicely_format import (
     validate_yaml,
 )
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("command", help="The command to run this program, e.g. check")
 parser.add_argument("--path", type=str, help="File or directory path to work on")
+csv_writer = None
+CSV_FIELDNAMES = [
+    "package_id",
+    "resource_id",
+    "timestamp",
+    "url",
+    "filesize",
+    "point",
+    "grade",
+    "grade_prior",
+    "error",
+]
 
 BEST_FORMATS = ["json", "toml", "yml", "yaml", "xml", "html"]
 
@@ -66,12 +81,14 @@ def validate_this(fpath, format):
 
 
 def handle_file(fpath, **kwargs):
-    max_filesize = os.getenv("MAX_FILESIZE_BYTES", 30*1024*1024)
+    max_filesize = os.getenv("MAX_FILESIZE_BYTES", 30 * 1024 * 1024)
     file_size = os.path.getsize(fpath)
-    if file_size > max_filesize:
+    if file_size > int(max_filesize):
         # TODO: we should save this somewhere to process on other node
-        print(f'[FILE] {fpath}')
-        print(f'       is bigger than we can handle: {int(file_size/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)')
+        print(f"[FILE] {fpath}")
+        print(
+            f"       is bigger than we can handle: {int(file_size/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)"
+        )
         return
 
     expected = kwargs.get("filetype", None)
@@ -99,17 +116,20 @@ def handle_url(link, file_format):
     """This is for checking off-site CKAN which need to download the file to
     investigate if it's machine readable or not.
     """
-    status_code, fp, format = fetch_file(link, file_format)
+    status_code, fp, format, file_size = fetch_file(link, file_format)
     if status_code == 200:
         good, encoding, note = validate_this(fp, format)
         if os.path.isfile(fp):
             os.remove(fp)
-        return good, encoding, note
+        return good, encoding, note, file_size
 
-    print(f""">>>=================\n""",
-        f"""    LINK: {link}\n""",
-        f"""    ERR: {status_code}""", flush=True)
-    return 0, None, status_code
+    print(
+        f""">>>=================\n""",
+        f"""  LINK: {link}\n""",
+        f"""  ERR: {status_code}""",
+        flush=True,
+    )
+    return 0, None, status_code, file_size
 
 
 def handle_ckan_api():
@@ -123,7 +143,8 @@ def handle_ckan_api():
                 print("X", res["format"], res["url"])
                 continue
             print("/", res["format"], res["url"])
-            ckan.resource_grader(res)
+            out = ckan.resource_grader(res)
+            write_output(*out)
 
 
 def handle_ckan_db():
@@ -133,16 +154,16 @@ def handle_ckan_db():
     q = """SELECT format, grade, package_id, id, format, url, url_type
     FROM resource
     WHERE name != 'All resource data'
-        AND grade IS null
+        AND (grade IS null OR grade = 'f')
     ORDER BY package_id
     """
     # AND format in ('CSV','JSON','XLS','XLSX','XML')
     cursor.execute(q)
     fields = ["format", "grade", "package_id", "id", "format", "url", "url_type"]
     skips = [
-        "8a956917-436d-4afd-a2d4-59e4dd8e906e",
-        "a03f8fb2-327e-4f22-887e-1b60212d4d9c",
-        "d11d6cc2-74bf-4f2d-8839-2968c0ea925a",
+        # "8a956917-436d-4afd-a2d4-59e4dd8e906e",
+        # "a03f8fb2-327e-4f22-887e-1b60212d4d9c",
+        # "d11d6cc2-74bf-4f2d-8839-2968c0ea925a",
     ]
     for row in cursor.fetchall():
         one = dict(zip(fields, row))
@@ -160,10 +181,10 @@ def handle_ckan_db():
             ] = f'{CKAN_URL}/dataset/{one["package_id"]}/resource/{one["id"]}/download/{fname}'
 
         print(one["uri"], one["format"], flush=True)
-        points, encoding, note = handle_url(one["uri"], one["format"])
-        grade = 'f'
+        points, encoding, note, file_size = handle_url(one["uri"], one["format"])
+        grade = "f"
         if note == 590:
-            print('    >>> FILE is TOO big to handle here', flush=True)
+            print("    >>> FILE is TOO big to handle here", flush=True)
 
         if note not in (404, 590, 599):
             grade = calculate_grade(points)
@@ -174,29 +195,69 @@ def handle_ckan_db():
         else:
             grade_delta = f"{grade} -- same old"
 
+        write_output(
+            one["package_id"],
+            one["id"],
+            arrow.get().isoformat(),
+            one["uri"],
+            file_size,
+            points,
+            grade,
+            curr_grade,
+            f"{encoding}|{note}",
+        )
+
         print(
             f"""== {one['id']} ================\n"""
             f"""0. {fname}\n"""
             f"""1. grade:               {grade_delta}\n"""
             f"""2. filetype:            {one['format']}\n"""
             f"""3. encoding:            {encoding}\n"""
-            f"""4. Machine readable:    {points if points else '0'} % {note}"""
+            f"""4. Machine readable:    {points if points else '0'} % {note}\n"""
             f"""=================>>>""",
             flush=True,
         )
 
 
+def write_output(
+    package_id, resource_id, timestamp, url, filesize, point, grade, grade_prior, error
+):
+    global csv_writer
+    csv_writer.writerow(
+        {
+            "package_id": package_id,
+            "resource_id": resource_id,
+            "timestamp": timestamp,
+            "url": url,
+            "filesize": filesize,
+            "point": point,
+            "grade": grade,
+            "grade_prior": grade_prior,
+            "error": error,
+        }
+    )
+
+
 def main():
     args = parser.parse_args()
     # print(args)
+
+    fn = f'output-{arrow.get().format("YYYY-MM-DD")}.csv'
+    output_exists = os.path.isfile(fn)
+    f = open(fn, "at")
+    global csv_writer
+    csv_writer = csv.DictWriter(f, fieldnames=CSV_FIELDNAMES)
+    if not output_exists:
+        csv_writer.writeheader()
+
     if args.command == "check":
         path = args.path
         if not path:
             print(f"Error: path is missing")
             parser.print_help()
             return
-        if path.index('http') == 0:
-            handle_url(path, 'CSV')
+        if path.find("http") == 0:
+            handle_url(path, "CSV")
             return
         # whether it's file or directory
         if not os.path.exists(path):
@@ -213,6 +274,9 @@ def main():
         handle_ckan_api()
     else:
         parser.print_help()
+
+    if f:
+        f.close()
 
 
 if __name__ == "__main__":

@@ -25,19 +25,20 @@ def is_content_size_ok(url):
             # TODO: we should save this somewhere to process on other node
             print(f'[URL] {url}')
             print(f'       is bigger than we can handle: {int(resp_in_bytes/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)')
-        return is_ok
+        return is_ok, resp_in_bytes
     except:
-        return False
+        return False, -1
 
 
 def fetch_file(url, file_format):
-    if not is_content_size_ok(url):
-        return 590, "", file_format
+    size_ok, fsize = is_content_size_ok(url)
+    if not size_ok:
+        return 590, "", file_format, fsize
 
     try:
         resp = sess.get(url, timeout=10)
     except:
-        return 599, "", file_format
+        return 599, "", file_format, -1
 
     status_code = resp.status_code
     if status_code != 200:
@@ -64,4 +65,4 @@ def fetch_file(url, file_format):
     ft = detect_filetype(fp)
     if ft == "unknown":
         ft = file_format
-    return 200, fp, ft
+    return 200, fp, ft, fsize

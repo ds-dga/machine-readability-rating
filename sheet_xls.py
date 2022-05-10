@@ -2,6 +2,8 @@ from xlrd import open_workbook
 import pandas as pd
 from itertools import chain
 
+from sheet_common import has_na_in_number_cols
+
 """ XLS, XLSX grader
 1. check if it's excel file.
 2. check if it has one header row. This is a bit triggy how to find that out.
@@ -69,3 +71,15 @@ def has_merged_cells(fpath, **kwargs):
         return True, f"{sheet.name}/{','.join(bd)}"
 
     return False, ""
+
+
+def are_num_cols_consistency(fpath):
+    """Basically check if there is NA or null in numbered columns
+
+    return <bool>
+        True    all numbered columns are consistency
+        False   Not all numbered columns are consistency
+    """
+    df = pd.read_excel(fpath)
+    bad, _ = has_na_in_number_cols(df)
+    return not bad
