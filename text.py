@@ -23,6 +23,6 @@ def is_this_utf8(fp):
     except UnicodeDecodeError:
         is_utf8 = False
         what = "ascii"
-    f.close()
-
-    return is_utf8, what
+    finally:
+        f.close()
+        return is_utf8, what

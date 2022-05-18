@@ -30,7 +30,7 @@ from sheet_xls import (
 
 
 def validate_csv(fpath):
-    note = ""
+    note = []
     good = 100
     is_utf8, encoding_guess = is_this_utf8(fpath)
     if not is_utf8:
@@ -39,7 +39,7 @@ def validate_csv(fpath):
     _check, msg = csv_has_good_header(fpath, encoding=encoding)
     if not _check:
         good -= 20
-        note += f" / bad header: {msg}"
+        note.append(f"bad header: {msg}")
     # consistency includes both shape & each col inspection
     _consistency, msg = csv_shape_consistency(fpath)
     if not _consistency:
@@ -47,17 +47,17 @@ def validate_csv(fpath):
         _consistency = csv_cols_consistency(fpath)
     if not _consistency:
         good -= 15
-        note += f" / inconsistency: {msg}"
-    return good, encoding_guess, note
+        note.append(f"inconsistency: {msg}")
+    return good, encoding_guess, ' / '.join(note)
 
 
 def validate_excel(fpath):
-    note = ""
+    note = []
     good = 100
     _check, msg = excel_has_good_header(fpath)
     if not _check:
         good -= 20
-        note += f" / bad header: {msg}"
+        note.append(f"bad header: {msg}")
     # consistency includes both shape & each col inspection
     _consistency, msg = excel_shape_consistency(fpath)
     if not _consistency:
@@ -65,22 +65,22 @@ def validate_excel(fpath):
         _consistency = excel_cols_consistency(fpath)
     if not _consistency:
         good -= 15
-        note += f" / inconsistency: {msg}"
+        note.append(f"inconsistency: {msg}")
     _has_merged, msg = excel_merged_cells(fpath)
     if _has_merged:
         good -= 5
-        note += f" / merged cells: {msg}"
+        note.append(f"merged cells: {msg}")
     # Microsoft always use utf-8 with BOM
-    return good, "utf-8 with BOM", note
+    return good, "utf-8 with BOM", ' / '.join(note)
 
 
 def validate_xls(fpath):
-    note = ""
+    note = []
     good = 100
     _check, msg = xls_has_good_header(fpath)
     if not _check:
         good -= 20
-        note += f" / bad header: {msg}"
+        note.append(f"bad header: {msg}")
     # consistency includes both shape & each col inspection
     _consistency, msg = xls_shape_consistency(fpath)
     if not _consistency:
@@ -88,10 +88,10 @@ def validate_xls(fpath):
         _consistency = xls_cols_consistency(fpath)
     if not _consistency:
         good -= 15
-        note += f" / inconsistency: {msg}"
+        note.append(f"inconsistency: {msg}")
     _has_merged, msg = xls_merged_cells(fpath)
     if _has_merged:
         good -= 5
-        note += f" / merged cells: {msg}"
+        note.append(f"merged cells: {msg}")
     # Microsoft always use utf-8 with BOM
-    return good, "utf-8 with BOM", note
+    return good, "utf-8 with BOM", ' / '.join(note)

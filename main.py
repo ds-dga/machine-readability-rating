@@ -7,7 +7,7 @@ import arrow
 from db import Database
 import ckan
 from grading import calculate_grade
-from offsite import fetch_file
+from offsite import fetch_file, machine_readable_hook
 from sheet import validate_csv, validate_excel, validate_xls
 from text import is_this_utf8
 from nicely_format import (
@@ -55,21 +55,21 @@ def validate_this(fpath, format):
     if format not in validator.keys():
         return 0, None, "unsupported filetype"
 
-    good = False
+    points = False
     is_utf8, what = None, None
     note = ""
-    if format in BEST_FORMATS:
-        is_utf8 = is_this_utf8(fpath)
-        good = validator[format](fpath)
-        good = 100 if good else 0
-    else:
+    if format not in BEST_FORMATS:
         try:
-            good, what, note = validator[format](fpath)
+            points, what, note = validator[format](fpath)
         except InvalidFileException:
             return 0, None, "unsupported xls"
         except Exception as e:
             print(e)
-            return 0, None, "something is wrong"
+            return 0, None, f"something is wrong: {e}"
+    else:
+        is_utf8 = is_this_utf8(fpath)
+        points = validator[format](fpath)
+        points = 100 if points else 0
 
     encoding = "unknown"
     if is_utf8:
@@ -77,7 +77,7 @@ def validate_this(fpath, format):
     elif what is not None:
         encoding = what
 
-    return good, encoding, note
+    return points, encoding, note
 
 
 def handle_file(fpath, **kwargs):
@@ -93,12 +93,16 @@ def handle_file(fpath, **kwargs):
 
     expected = kwargs.get("filetype", None)
     fType = detect_filetype(fpath)
-    good, encoding, note = validate_this(fpath, fType)
+    points, encoding, note = validate_this(fpath, fType)
+    # print(fType, points, encoding, note)
+    grade = calculate_grade(points)
     print(
         f"""========== {fpath} ==========\n"""
         f"""1. filetype:            {expected or fType}\n"""
         f"""2. encoding:            {encoding}\n"""
-        f"""3. Machine readable:    {good if good else '0'} % {note}"""
+        f"""3. Machine readable:    {points if points else '0'}\n"""
+        f"""4. Grade:               {grade}\n"""
+        f"""5. Note:                {note}\n"""
     )
 
 
@@ -118,15 +122,26 @@ def handle_url(link, file_format):
     """
     status_code, fp, format, file_size = fetch_file(link, file_format)
     if status_code == 200:
-        good, encoding, note = validate_this(fp, format)
+        points, encoding, note = validate_this(fp, format)
         if os.path.isfile(fp):
             os.remove(fp)
-        return good, encoding, note, file_size
+        print(
+            f""">>>=================\n""",
+            f"""  LINK:      {link}\n""",
+            f"""  ERR:       {status_code}\n""",
+            f"""  format:    {format}\n""",
+            f"""  file size: {file_size}\n""",
+            f"""  points:    {points}\n""",
+            flush=True,
+        )
+        return points, encoding, note, file_size
 
     print(
         f""">>>=================\n""",
-        f"""  LINK: {link}\n""",
-        f"""  ERR: {status_code}""",
+        f"""  LINK:      {link}\n""",
+        f"""  ERR:       {status_code}\n""",
+        f"""  format:    {format}\n""",
+        f"""  file size: {file_size}\n""",
         flush=True,
     )
     return 0, None, status_code, file_size
@@ -206,7 +221,17 @@ def handle_ckan_db():
             curr_grade,
             f"{encoding}|{note}",
         )
-
+        # store some data in opendata_item/stats
+        machine_readable_hook(
+            one["package_id"],
+            one["id"],
+            one["uri"],
+            one["format"],
+            grade,
+            points,
+            f"{file_size}|{note}",
+            encoding,
+        )
         print(
             f"""== {one['id']} ================\n"""
             f"""0. {fname}\n"""

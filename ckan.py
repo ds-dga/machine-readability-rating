@@ -2,7 +2,7 @@ import arrow
 from db import Database
 from grading import calculate_grade
 from main import handle_url
-from offsite import fetch_api
+from offsite import fetch_api, machine_readable_hook
 
 BASE_URL = "https://data.go.th"
 db = None
@@ -64,7 +64,8 @@ def resource_grader(item):
         ]
 
     points, encoding, note, file_size = handle_url(item["url"], item["format"])
-    # print(item["url"], item["format"], flush=True)
+    print(item["url"], item["format"], flush=True)
+    print(">> ",points, encoding, note, file_size, flush=True)
     grade = "f"
     if note not in (404, 590, 599):
         grade = calculate_grade(points)
@@ -76,13 +77,26 @@ def resource_grader(item):
     else:
         grade_delta = f"{grade} -- same old"
 
+    # store some data in opendata_item/stats
+    machine_readable_hook(
+        item["package_id"],
+        item["id"],
+        item["url"],
+        item["format"],
+        grade,
+        points,
+        f"ckan|{file_size}|{note}",
+        encoding,
+    )
+
     print(
         f"""== {item['id']} ================\n"""
+        f"""== {item['url']} ================\n"""
         f"""0. {item['description']}\n"""
         f"""1. grade:               {grade_delta}\n"""
         f"""2. filetype:            {item['format']}\n"""
         f"""3. encoding:            {encoding}\n"""
-        f"""4. Machine readable:    {points if points else '0'} % {note}\n"""
+        f"""4. Machine readable:    {points if points else '0'} %% {note}\n"""
         f"""=================>>>""",
         flush=True,
     )
