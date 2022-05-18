@@ -31,6 +31,8 @@ def fetch_api(url):
 
 def is_content_size_ok(url):
     max_filesize = getenv("MAX_FILESIZE_BYTES", 30 * 1024 * 1024)
+    if url.find('http://192.168') == 0:
+        return False, -1
     try:
         max_filesize = int(max_filesize)
         resp = sess.head(url)
@@ -49,6 +51,8 @@ def is_content_size_ok(url):
 
 
 def fetch_file(url, file_format):
+    if url.find('http://192.168') == 0:
+        return 591, "", 'file_format', -1
     size_ok, fsize = is_content_size_ok(url)
     if not size_ok:
         return 590, "", file_format, fsize
