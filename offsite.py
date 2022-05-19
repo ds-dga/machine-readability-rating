@@ -44,6 +44,8 @@ def is_content_size_ok(url):
     try:
         max_filesize = int(max_filesize)
         resp = sess.head(url)
+        if resp.status_code != 200:
+            return False, -22
         resp_in_bytes = resp.headers["content-length"]
         resp_in_bytes = int(resp_in_bytes)
         is_ok = resp_in_bytes < max_filesize
@@ -54,7 +56,15 @@ def is_content_size_ok(url):
                 f"       is bigger than we can handle: {int(resp_in_bytes/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)"
             )
         return is_ok, resp_in_bytes
+    except KeyError:
+        # somehow it doesn't return content-length
+        # presumably 404, but it should not be here, shouldn't it?
+        return False, -22
     except Exception as e:
+        """Since we don't validate URL at first, here might be
+
+        * Invalid URL '': No scheme supplied. Perhaps you meant http://?
+        """
         print('[IS_CONTENT_SIZE_OK] NOT ', e)
         return False, -21
 
@@ -64,6 +74,8 @@ def fetch_file(url, file_format):
         return 591, "", "file_format", -1
     size_ok, fsize = is_content_size_ok(url)
     if not size_ok:
+        if fsize in (-21, -22):  # 404 & invalid URL consecutively
+            return 404, "", file_format, -1
         return 590, "", file_format, fsize
 
     try:

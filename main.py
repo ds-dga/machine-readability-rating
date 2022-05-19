@@ -84,7 +84,6 @@ def handle_file(fpath, **kwargs):
     max_filesize = os.getenv("MAX_FILESIZE_BYTES", 30 * 1024 * 1024)
     file_size = os.path.getsize(fpath)
     if file_size > int(max_filesize):
-        # TODO: we should save this somewhere to process on other node
         print(f"[FILE] {fpath}")
         print(
             f"       is bigger than we can handle: {int(file_size/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)"
@@ -194,6 +193,7 @@ def handle_ckan_db():
 
         if note not in (404, 590, 599):
             grade = calculate_grade(points)
+
         db.resource_grade_update(one["id"], grade)
         curr_grade = one["grade"]
         if grade != curr_grade:
