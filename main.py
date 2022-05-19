@@ -175,17 +175,8 @@ def handle_ckan_db():
     # AND format in ('CSV','JSON','XLS','XLSX','XML')
     cursor.execute(q)
     fields = ["format", "grade", "package_id", "id", "format", "url", "url_type"]
-    skips = [
-        # "8a956917-436d-4afd-a2d4-59e4dd8e906e",
-        # "a03f8fb2-327e-4f22-887e-1b60212d4d9c",
-        # "d11d6cc2-74bf-4f2d-8839-2968c0ea925a",
-    ]
     for row in cursor.fetchall():
         one = dict(zip(fields, row))
-        if one["id"] in skips:
-            # these are huge csv/excel files and will kill the process.
-            # TODO: handle those huge files
-            continue
         # http://localhost:5000/dataset/b4dd196a-3760-4314-aa27-6ccb763cb8c3/resource/fb48a9ad-01ac-4e3e-a2a7-fe938fb8810d/download/accident2019.xlsx
         fname = one["url"]
         # fname = f'target_file.{one["format"].lower()}'

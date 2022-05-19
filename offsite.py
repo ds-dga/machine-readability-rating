@@ -1,6 +1,7 @@
 from os import getenv
 import json
 from requests import Session
+from requests.exceptions import ReadTimeout
 from tempfile import NamedTemporaryFile
 from nicely_format import detect_filetype
 import subprocess
@@ -22,17 +23,24 @@ git_rev = get_git_revision_short_hash()
 
 
 def fetch_api(url):
-    resp = sess.get(url)
-    if resp.status_code != 200:
+    try:
+        resp = sess.get(url, timeout=30)
+        if resp.status_code != 200:
+            return []
+        body = json.loads(resp.text)
+        return body
+    except ReadTimeout:
+        print("[FETCH_API] timeout ", url)
         return []
-    body = json.loads(resp.text)
-    return body
+    except Exception as e:
+        print("[FETCH_API] exception ", e)
+        return []
 
 
 def is_content_size_ok(url):
     max_filesize = getenv("MAX_FILESIZE_BYTES", 30 * 1024 * 1024)
-    if url.find('http://192.168') == 0:
-        return False, -1
+    if url.find("http://192.168") == 0:
+        return False, -20
     try:
         max_filesize = int(max_filesize)
         resp = sess.head(url)
@@ -46,19 +54,22 @@ def is_content_size_ok(url):
                 f"       is bigger than we can handle: {int(resp_in_bytes/(1024*1024))} MB ({int(max_filesize/(1024*1024))} MB limit)"
             )
         return is_ok, resp_in_bytes
-    except:
-        return False, -1
+    except Exception as e:
+        print('[IS_CONTENT_SIZE_OK] NOT ', e)
+        return False, -21
 
 
 def fetch_file(url, file_format):
-    if url.find('http://192.168') == 0:
-        return 591, "", 'file_format', -1
+    if url.find("http://192.168") == 0:
+        return 591, "", "file_format", -1
     size_ok, fsize = is_content_size_ok(url)
     if not size_ok:
         return 590, "", file_format, fsize
 
     try:
-        resp = sess.get(url, timeout=10)
+        resp = sess.get(url, timeout=30)
+    except ReadTimeout:
+        return 595, "", file_format, -1
     except:
         return 599, "", file_format, -1
 
